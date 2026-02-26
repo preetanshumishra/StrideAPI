@@ -1,8 +1,46 @@
 import express from 'express';
-import { createErrand, getErrands, getErrand, updateErrand, completeErrand, deleteErrand } from '../controllers/errandController';
+import { createErrand, getErrands, getErrand, updateErrand, completeErrand, deleteErrand, getErrandRoute } from '../controllers/errandController';
 import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * /api/v1/errands/route:
+ *   post:
+ *     summary: Get optimized errand route from current location
+ *     tags: [Errands]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [latitude, longitude]
+ *             properties:
+ *               latitude:
+ *                 type: number
+ *                 example: 40.7128
+ *               longitude:
+ *                 type: number
+ *                 example: -74.0060
+ *               radiusKm:
+ *                 type: number
+ *                 example: 50
+ *                 description: Max distance in km (default 50)
+ *     responses:
+ *       200:
+ *         description: Pending errands sorted by nearest-neighbor route, with distanceKm for located errands
+ *       400:
+ *         description: Invalid latitude or longitude
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/route', authenticate, getErrandRoute);
 
 /**
  * @swagger

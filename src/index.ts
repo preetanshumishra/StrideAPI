@@ -15,6 +15,7 @@ import authRoutes from './routes/auth';
 import placeRoutes from './routes/places';
 import errandRoutes from './routes/errands';
 import collectionRoutes from './routes/collections';
+import nearbyRoutes from './routes/nearby';
 import { getErrorMessage } from './utils/errorResponse';
 
 const app: Express = express();
@@ -156,6 +157,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/places', placeRoutes);
 app.use('/api/v1/errands', errandRoutes);
 app.use('/api/v1/collections', collectionRoutes);
+app.use('/api/v1/nearby', nearbyRoutes);
 
 // 404 handler (must use middleware function, not route)
 app.use((_req: Request, res: Response) => {

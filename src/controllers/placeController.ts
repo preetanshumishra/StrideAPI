@@ -142,6 +142,40 @@ export const updatePlace = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+export const recordVisit = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ status: 'error', message: 'Unauthorized' });
+      return;
+    }
+
+    const id = req.params.id as string;
+    if (!isValidObjectId(id, res)) return;
+
+    const place = await Place.findOneAndUpdate(
+      { _id: id, userId: req.user.userId },
+      { $inc: { visitCount: 1 }, $set: { lastVisited: new Date() } },
+      { new: true }
+    );
+
+    if (!place) {
+      res.status(404).json({ status: 'error', message: 'Place not found' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Visit recorded',
+      data: place,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: getErrorMessage(error, 'Failed to record visit'),
+    });
+  }
+};
+
 export const deletePlace = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {

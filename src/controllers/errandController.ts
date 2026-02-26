@@ -1,8 +1,86 @@
 import { Response } from 'express';
 import Errand from '../models/Errand';
+import { IPlace } from '../models/Place';
 import { AuthRequest } from '../middleware/auth';
 import { getErrorMessage } from '../utils/errorResponse';
 import { isValidObjectId } from '../utils/validateObjectId';
+import { calculateDistance } from '../utils/haversine';
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+export const getErrandRoute = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ status: 'error', message: 'Unauthorized' });
+      return;
+    }
+
+    const { latitude, longitude, radiusKm } = req.body;
+
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      res.status(400).json({
+        status: 'error',
+        message: 'latitude and longitude must be numbers',
+      });
+      return;
+    }
+
+    const maxRadius = typeof radiusKm === 'number' ? radiusKm : 50;
+
+    const errands = await Errand.find({ userId: req.user.userId, status: 'pending' }).populate<{
+      linkedPlaceId: IPlace | null;
+    }>('linkedPlaceId');
+
+    const withLocation: Array<{ errand: (typeof errands)[number]; distanceKm: number }> = [];
+    const withoutLocation: Array<(typeof errands)[number]> = [];
+
+    for (const errand of errands) {
+      const place = errand.linkedPlaceId as IPlace | null;
+      if (place && typeof place.latitude === 'number' && typeof place.longitude === 'number') {
+        const dist = calculateDistance(latitude, longitude, place.latitude, place.longitude);
+        if (dist <= maxRadius) {
+          withLocation.push({ errand, distanceKm: dist });
+        }
+      } else {
+        withoutLocation.push(errand);
+      }
+    }
+
+    withLocation.sort((a, b) => {
+      if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+      const pa = PRIORITY_ORDER[a.errand.priority] ?? 1;
+      const pb = PRIORITY_ORDER[b.errand.priority] ?? 1;
+      if (pa !== pb) return pa - pb;
+      const da = a.errand.deadline ? new Date(a.errand.deadline).getTime() : Infinity;
+      const db = b.errand.deadline ? new Date(b.errand.deadline).getTime() : Infinity;
+      return da - db;
+    });
+
+    withoutLocation.sort((a, b) => {
+      const pa = PRIORITY_ORDER[a.priority] ?? 1;
+      const pb = PRIORITY_ORDER[b.priority] ?? 1;
+      if (pa !== pb) return pa - pb;
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return da - db;
+    });
+
+    const sortedErrands = [
+      ...withLocation.map(({ errand, distanceKm }) => ({ ...errand.toObject(), distanceKm })),
+      ...withoutLocation.map((errand) => errand.toObject()),
+    ];
+
+    res.status(200).json({
+      status: 'success',
+      data: sortedErrands,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: getErrorMessage(error, 'Failed to compute errand route'),
+    });
+  }
+};
 
 export const createErrand = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

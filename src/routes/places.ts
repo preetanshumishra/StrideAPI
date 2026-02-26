@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPlace, getPlaces, getPlace, updatePlace, deletePlace } from '../controllers/placeController';
+import { createPlace, getPlaces, getPlace, updatePlace, deletePlace, recordVisit } from '../controllers/placeController';
 import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
@@ -111,6 +111,32 @@ router.get('/', authenticate, getPlaces);
  *         description: Place not found
  */
 router.get('/:id', authenticate, getPlace);
+
+/**
+ * @swagger
+ * /api/v1/places/{id}/visit:
+ *   patch:
+ *     summary: Record a visit to a place
+ *     tags: [Places]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Visit recorded, returns updated place with incremented visitCount and lastVisited
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Place not found
+ *       500:
+ *         description: Internal server error
+ */
+router.patch('/:id/visit', authenticate, recordVisit);
 
 /**
  * @swagger
